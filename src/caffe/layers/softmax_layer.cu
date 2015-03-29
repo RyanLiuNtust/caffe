@@ -36,9 +36,10 @@ __global__ void kernel_channel_subtract(const int count,
 }
 
 template <typename Dtype>
-__global__ void kernel_exp(const int count, const Dtype* data, Dtype* out) {
+__global__ void kernel_exp(const int count, const float temperature, 
+    const Dtype* data, Dtype* out) {
   CUDA_KERNEL_LOOP(index, count) {
-    out[index] = exp(data[index]);
+    out[index] = exp(data[index] / temperature);
   }
 }
 
@@ -89,6 +90,7 @@ void SoftmaxLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
   Dtype* scale_data = scale_.mutable_gpu_data();
+  Dtype temperature = this->layer_param_.softmax_param().temperature();
   int count = bottom[0]->count();
   int num = bottom[0]->num();
   int channels = bottom[0]->channels();
@@ -109,8 +111,8 @@ void SoftmaxLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   // exponentiate
   // NOLINT_NEXT_LINE(whitespace/operators)
   kernel_exp<Dtype><<<CAFFE_GET_BLOCKS(num * channels * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num * channels * spatial_dim, top_data,
-      top_data);
+      CAFFE_CUDA_NUM_THREADS>>>(num * channels * spatial_dim, temperature, 
+      top_data, top_data);
   // sum after exp
   // NOLINT_NEXT_LINE(whitespace/operators)
   kernel_channel_sum<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
